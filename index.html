@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>Smart Car</title>
+    <title>Teachable Car</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <style>
@@ -77,16 +77,10 @@
 
     <div id="action_buttons">
         <div>
-            <button id="generate_btn">generate</button>
-            <button id="stop_btn">stop</button>
-            <button id="start_prediction_btn">start prediction</button>
-            <button id="next_batch_btn">next batch</button>
-        </div>
-
-        <div>
-            <input type="number" id="car_id" min="0" />
-            <button id="highlight_btn">highlight</button>
-            <button id="add_to_pool_btn">add/remove from pool</button>
+            <button id="start_training_btn">start training</button>
+            <button id="stop_training_btn">stop training</button>
+            <button id="test_btn">test</button>
+            <button id="compete_btn">compete</button>
         </div>
     </div>
 
@@ -100,6 +94,7 @@
             THREE: {},
             CANNON: {},
             MeshBodyPairs: [],
+            keyboardIps:[0, NaN, 0, 0, NaN, 0]    //do not use no_throttle index for keyboard ip... this weird format is used because automatic wala code had been written with this and ctrl+c, ctrl+v....
         }
 
         function to_radians(degrees) {
@@ -274,10 +269,19 @@
     <script src="serialize.js"></script>
     <script src="pip.js"></script>
     <script>
-        document.onkeydown = handler;
-        document.onkeyup = handler;        
+        document.onkeydown = (evt)=>handler(evt, 'down');
+        document.onkeyup = (evt)=>handler(evt, 'up');
 
-        var current = 0
+        var population = []
+
+        var trainee = new CarWithSensors();
+        setManualDrive(trainee)
+        trainee.resetBody()
+        trainee.body.position.set(spawnPoint.x, spawnPoint.y, spawnPoint.z)
+        trainee.body.quaternion.set(spawnQuat.x, spawnQuat.y, spawnQuat.z, spawnQuat.w)
+        
+        population.push(trainee)
+
 
         var m = new Map(spawnPoint, 0, 8)
 
@@ -292,6 +296,7 @@
         var animFlag = true;
         var physicsFlag = true;
 
+
         function draw() {
             if (animFlag) {
                 requestAnimationFrame(draw)
@@ -302,6 +307,11 @@
                 global.CANNON.world.step(1 / 60)
 
                 resolveMeshBodyPairs()
+            }
+
+            for(vehicle of population){
+                vehicle.tick()
+                vehicle.makeMove()
             }
 
             global.THREE.renderer.render(global.THREE.scene, global.THREE.camera)
@@ -383,21 +393,22 @@
             mesh.position.set(point.x, point.y, point.z)
         }
 
-        function highlightVehicle(no) {
-            CarsBatcher.car_batch[no].mesh.material.color.setHex(CAR_HIGHLIGHT_COLOR)
-            CarsBatcher.car_batch[no].mesh.material.opacity = CAR_HIGHLIGHT_OPACITY
+        function handler(event, type) {            
+            if(type == 'up'){
+                global.keyboardIps[mapKeyToIpIndex(event.key)] = 0
+            }else{
+                global.keyboardIps[mapKeyToIpIndex(event.key)] = 1
+            }
         }
 
-        function removeHighlightFromVehicle(no) {
-            if (no >= CarsBatcher.batchSize || no < 0) return
-
-            CarsBatcher.car_batch[no].mesh.material.color.setHex(CAR_COLOR)
-            CarsBatcher.car_batch[no].mesh.material.opacity = CAR_OPACITY
+        function mapKeyToIpIndex(code){
+            switch(code){
+                case 'w': return THROTTLE_INDEX
+                case 's': return BRAKE_INDEX
+                case 'a': return STEER_LEFT_INDEX
+                case 'd': return STEER_RIGHT_INDEX
+            }
         }
-
-        function handler(event) {
-            if (event.keyCode != 38 && event.keyCode != 40) return
-        }        
     </script>
 </body>
 

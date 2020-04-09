@@ -204,8 +204,7 @@ function CarWithSensors() {
 
         this.removeBodyAndVehicle()
 
-        var car_no = CarsBatcher.car_batch.indexOf(this)
-        population.splice(population.indexOf(car_no), 1)
+        population.splice(population.indexOf(this), 1)
     }
 
     this.removeBodyAndVehicle = function(){
@@ -251,60 +250,7 @@ function CarWithSensors() {
         }
     }
 
-    this.makeMove = function(){
-        var ips = [...this.sensors.map((sensor) => { return sensor.state / CAR_SENSOR_SIZE})]
-        ips.push(this.throttleInput)
-        ips.push(this.steerInput)
-        ips.push(this.reverseInput)
-
-        var res = this.brain.predict(ips)
-
-        var engine_force
-        var steer_val
-
-        this.throttleInput = 0
-        this.reverseInput = 0
-        
-        var max_val = Math.max(res[THROTTLE_INDEX], res[NO_THROTTLE_INDEX], res[BRAKE_INDEX])
-        if (max_val == res[THROTTLE_INDEX]){
-        
-            engine_force = -MAX_FORCE
-            this.throttleInput = 1
-        
-        }else if(max_val == res[NO_THROTTLE_INDEX]){
-            
-            engine_force = 0
-            this.throttleInput = 0
-
-        }else if(max_val == res[BRAKE_INDEX]){ 
-
-            engine_force = MAX_FORCE/2
-            this.reverseInput = 1
-
-        }
-
-        var max_val = Math.max(res[STEER_LEFT_INDEX], res[STEER_LEFT_INDEX], res[NO_STEER_INDEX])
-        if(max_val == res[STEER_RIGHT_INDEX]){
-        
-            steer_val = -MAX_STEER_VAL
-            this.steerInput = 1
-        
-        }if(max_val == res[STEER_LEFT_INDEX]){
-        
-            steer_val = 0
-            this.steerInput = 0.5
-        
-        }if(max_val == res[NO_STEER_INDEX]){
-        
-            steer_val = MAX_STEER_VAL
-            this.steerInput = 0
-        
-        }
-        
-
-        this.applyEngineForce(engine_force)
-        this.turn(steer_val)
-    }
+    this.makeMove = function(){/*filled by setAutomaticDrive or setManualDrive*/}
 
     function _resetBody(){
         if(this.body != null) return
@@ -451,4 +397,95 @@ function CarSensor(x, y, z) {
     this.delete = function () {
         global.THREE.scene.remove(this.mesh)
     }
+}
+
+function setManualDrive(car){
+    var manual_make_move_fn = function() {
+        var engine_force, steer_val
+        
+        if (global.keyboardIps[THROTTLE_INDEX]) {
+            engine_force = -MAX_FORCE
+        } else {
+            engine_force = 0
+        } 
+        
+        if (global.keyboardIps[BRAKE_INDEX]) {
+            engine_force = MAX_FORCE / 2
+        }
+
+        if (global.keyboardIps[STEER_RIGHT_INDEX]) {
+            steer_val = -MAX_STEER_VAL
+        } else if (global.keyboardIps[STEER_LEFT_INDEX]) {
+            steer_val = MAX_STEER_VAL
+        } else  {
+            steer_val = 0
+        }
+
+        console.log("Driving: " + engine_force + " " + steer_val)
+        this.applyEngineForce(engine_force)
+        this.turn(steer_val)
+    }
+
+    car.makeMove = manual_make_move_fn
+}
+
+function setAutomaticDrive(car){
+    var auto_make_move_fn = function () {
+        var ips = [...this.sensors.map((sensor) => (sensor.state / CAR_SENSOR_SIZE))]
+        ips.push(this.throttleInput)
+        ips.push(this.steerInput)
+        ips.push(this.reverseInput)
+
+        var res = this.brain.predict(ips)
+
+        var engine_force
+        var steer_val
+
+        this.throttleInput = 0
+        this.reverseInput = 0
+
+        var max_val = Math.max(res[THROTTLE_INDEX], res[NO_THROTTLE_INDEX], res[BRAKE_INDEX])
+        if (max_val == res[THROTTLE_INDEX]) {
+
+            engine_force = -MAX_FORCE
+            this.throttleInput = 1
+
+        } else if (max_val == res[NO_THROTTLE_INDEX]) {
+
+            engine_force = 0
+            this.throttleInput = 0
+
+        } else if (max_val == res[BRAKE_INDEX]) {
+
+            engine_force = MAX_FORCE / 2
+            this.reverseInput = 1
+
+        }
+
+        var max_val = Math.max(res[STEER_LEFT_INDEX], res[STEER_RIGHT_INDEX], res[NO_STEER_INDEX])
+        if (max_val == res[STEER_RIGHT_INDEX]) {
+
+            steer_val = -MAX_STEER_VAL
+            this.steerInput = 1
+
+        } if (max_val == res[NO_STEER_INDEX]) {
+
+            steer_val = 0
+            this.steerInput = 0.5
+
+        } if (max_val == res[STEER_LEFT_INDEX]) {
+
+            steer_val = MAX_STEER_VAL
+            this.steerInput = 0
+
+        }
+
+
+        this.applyEngineForce(engine_force)
+        this.turn(steer_val)
+    }
+
+    car.brain = new NeuralNetwork(DEFAULT_ARCHITECTURE)
+
+    car.makeMove = auto_make_move_fn
 }

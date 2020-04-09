@@ -279,9 +279,9 @@ function Map(start_pt, deg, width) {
 
     //collision helpers
     this.checkCollisions = function (vehicles) {
-        for (var vehicleNo of vehicles) {
-            if (this.checkCollisionForVehicle(CarsBatcher.car_batch[vehicleNo])) {
-                CarsBatcher.car_batch[vehicleNo].dead()
+        for (var vehicle of vehicles) {
+            if (this.checkCollisionForVehicle( vehicle )) {
+                vehicle.dead()
             }
         }
     }
@@ -333,25 +333,6 @@ function Map(start_pt, deg, width) {
                             var distance = Math.sqrt(x * x + z * z)
                             sensorState[i] = distance
                         }
-                    }
-        
-                    //checking for collision with checkpoint... disabled for now
-                    {
-                        // if (vehicle.lastCheckpointIndex < m.checkpoints.length - 1){
-                        //     var nextCheckpointForThisVehicle = m.checkpoints[vehicle.lastCheckpointIndex + 1]
-        
-                        //     for (var i = 0; i < bps.length; i++) {
-                        //         var line = {
-                        //             p1: bps[i],
-                        //             p2: bps[(i + 1) % bps.length]
-                        //         }
-        
-                        //         if ( isIntersect(line, nextCheckpointForThisVehicle) ){
-                        //             vehicle.lastCheckpointIndex++
-                        //             break
-                        //         }
-                        //     }
-                        // }
                     }
         
                     for (var i = 0; i < vehicle.sensors.length; i++) {
