@@ -107,6 +107,8 @@ function CarWithSensors() {
     this.resetBody = _resetBody
 
     this.tick = function () {
+        if(this.disabled) return;
+
         for (var i = 0; i < this._vehicle.wheelInfos.length; i++) {
             this._vehicle.updateWheelTransform(i);
             var t = this._vehicle.wheelInfos[i].worldTransform;
@@ -184,27 +186,14 @@ function CarWithSensors() {
         this._vehicle.setSteeringValue(end ? 0 : MAX_STEER_VAL, 1);
     }
 
-    this.disable = function(){
-        this.disabled = true
-
-        global.CANNON.world.removeBody(this.body)
-        this._vehicle.removeFromWorld(global.CANNON.world)
-    }
-    this.enable = function(){
-        this.disabled = false
-
-        global.CANNON.world.addBody(this.body)
-        this._vehicle.addToWorld(global.CANNON.world)
-    }
-
     this.dead = function () {
         //so that the wheels and sensor meshes are not aage peeche wrt the vehicle
         this.mesh.position.set(this.body.position.x, this.body.position.y, this.body.position.z)
         this.tick()
 
-        this.removeBodyAndVehicle()
-
+        this.delete()
         population.splice(population.indexOf(this), 1)
+        dead_marker.push(drawSphereAtPoint(this.body.position))
     }
 
     this.removeBodyAndVehicle = function(){
@@ -221,8 +210,8 @@ function CarWithSensors() {
     }
 
     this.delete = function () {
-        global.THREE.scene.remove(this.mesh)
-        global.CANNON.world.remove(this.body)
+        if(this.mesh) global.THREE.scene.remove(this.mesh)
+        if(this.body) global.CANNON.world.remove(this.body)
 
         this._vehicle.removeFromWorld(global.CANNON.world)
 
@@ -396,6 +385,7 @@ function CarSensor(x, y, z) {
 
     this.delete = function () {
         global.THREE.scene.remove(this.mesh)
+        global.THREE.scene.remove(this.collisionPoint)        
     }
 }
 
@@ -423,7 +413,6 @@ function setManualDrive(car){
             steer_val = 0
         }
 
-        console.log("Driving: " + engine_force + " " + steer_val)
         this.applyEngineForce(engine_force)
         this.turn(steer_val)
     }

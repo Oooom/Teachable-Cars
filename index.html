@@ -59,7 +59,7 @@
             font-family: Arial, Helvetica, sans-serif;
         }
 
-        #mating_pool_container{
+        #mating_pool_container {
             position: absolute;
             left: 0;
             top: 0;
@@ -77,13 +77,12 @@
 
     <div id="action_buttons">
         <div>
-            <button id="start_training_btn">start training</button>
-            <button id="stop_training_btn">stop training</button>
-            <button id="test_btn">test</button>
-            <button id="compete_btn">compete</button>
+            <button onclick="toggleTraining()" id="training_toggle_btn">start training</button>
+            <button onclick="toggleTesting()" id="testing_toggle_btn">start testing</button>
+            <button onclick="toggleCompeting()" id="compete_toggle_btn">start competing</button>
         </div>
         <div>
-            <button id="input_toggle_btn" onClick = "toggleInput()">accepting ip: false</button>
+            <button id="input_toggle_btn" onClick="toggleInput()">accepting ip: false</button>
         </div>
     </div>
 
@@ -98,7 +97,11 @@
             CANNON: {},
             MeshBodyPairs: [],
             acceptingInputs: false,
-            keyboardIps:[0, NaN, 0, 0, NaN, 0]    //do not use no_throttle index for keyboard ip... this weird format is used because automatic wala code had been written with this and ctrl+c, ctrl+v....
+            captureKeyboard: false,
+            firstIpDone: false,
+            mode: '',
+            keyboardIps: [0, NaN, 0, 0, NaN,
+                0] //do not use no_throttle index for keyboard ip... this weird format is used because automatic wala code had been written with this and ctrl+c, ctrl+v....
         }
 
         function to_radians(degrees) {
@@ -257,6 +260,130 @@
             z: 0,
             w: 0.7071067811865476
         }
+
+        function toggleTraining() {
+            if (global.mode == '') {
+                global.mode = 'Training'
+
+                compete_toggle_btn.disabled = true
+                testing_toggle_btn.disabled = true
+                training_toggle_btn.innerText = "stop training"
+                onTrainStart()
+            } else {
+                global.mode = ''
+
+                compete_toggle_btn.disabled = false
+                testing_toggle_btn.disabled = false
+                training_toggle_btn.innerText = "start training"
+                onTrainEnd()
+            }
+        }
+
+        function toggleTesting() {
+            if (global.mode == '') {
+                global.mode = 'Testing'
+
+                compete_toggle_btn.disabled = true
+                training_toggle_btn.disabled = true
+                testing_toggle_btn.innerText = "stop testing"
+                onTestStart()
+            } else {
+                global.mode = ''
+
+                compete_toggle_btn.disabled = false
+                training_toggle_btn.disabled = false
+                testing_toggle_btn.innerText = "start testing"
+                onTestEnd()
+            }
+        }
+
+        function toggleCompeting() {
+            if (global.mode == '') {
+                global.mode = 'Competing'
+
+                training_toggle_btn.disabled = true
+                testing_toggle_btn.disabled = true
+                compete_toggle_btn.innerText = "stop competing"
+                onCompeteStart()
+            } else {
+                global.mode = ''
+
+                training_toggle_btn.disabled = false
+                testing_toggle_btn.disabled = false
+                compete_toggle_btn.innerText = "start competing"
+                onCompeteEnd()
+            }
+        }
+
+        function clearAllCars(){
+            for(var vehicle of population){
+                vehicle.delete()
+            }
+            
+            for(var marker of dead_marker){
+                global.THREE.scene.remove(marker)
+            }
+
+            population = []
+            dead_list = []
+        }
+
+        function onTestStart(){
+            addTrainee()
+        }
+        function onTestEnd(){
+            clearAllCars()
+            
+            if(global.acceptingInputs)
+                input_toggle_btn.click()
+        }
+
+
+        function onTrainStart(){
+            addTrainer()
+            global.captureKeyboard = true
+        }
+        function onTrainEnd(){
+            clearAllCars()
+            global.captureKeyboard = false
+            
+            if(global.acceptingInputs)
+                input_toggle_btn.click()
+            //train the nn on the captured_data
+        }
+
+
+        function onCompeteStart(){
+            addTrainee()
+            addTrainer()
+        }
+        function onCompeteEnd(){
+            clearAllCars()
+            
+            if(global.acceptingInputs)
+                input_toggle_btn.click()
+        }
+
+
+        function addTrainer(){
+            window.trainer = new CarWithSensors();
+            setManualDrive(trainer)
+            trainer.resetBody()
+            trainer.body.position.set(spawnPoint.x, spawnPoint.y, spawnPoint.z)
+            trainer.body.quaternion.set(spawnQuat.x, spawnQuat.y, spawnQuat.z, spawnQuat.w)
+
+            population.push(trainer)
+        }
+
+        function addTrainee(){
+            window.trainee = new CarWithSensors();
+            setAutomaticDrive(trainee)
+            trainee.resetBody()
+            trainee.body.position.set(spawnPoint.x, spawnPoint.y, spawnPoint.z)
+            trainee.body.quaternion.set(spawnQuat.x, spawnQuat.y, spawnQuat.z, spawnQuat.w)
+
+            population.push(trainee)
+        }
     </script>
     <!-- <script src="CannonDebugRenderer.js"></script> -->
     <script src="cannon.js"></script>
@@ -273,23 +400,15 @@
     <script src="serialize.js"></script>
     <script src="pip.js"></script>
     <script>
-        document.onkeydown = (evt)=>handler(evt, 'down');
-        document.onkeyup = (evt)=>handler(evt, 'up');
+        document.onkeydown = (evt) => handler(evt, 'down');
+        document.onkeyup = (evt) => handler(evt, 'up');
 
         var population = []
-
-        var trainee = new CarWithSensors();
-        setAutomaticDrive(trainee)
-        trainee.resetBody()
-        trainee.body.position.set(spawnPoint.x, spawnPoint.y, spawnPoint.z)
-        trainee.body.quaternion.set(spawnQuat.x, spawnQuat.y, spawnQuat.z, spawnQuat.w)
-        
-        population.push(trainee)
-
+        var dead_marker = []
 
         var m = new Map(spawnPoint, 0, 8)
 
-        m.addCheckpointAtCursor()        
+        m.addCheckpointAtCursor()
         m.extendRouteStraight(16, "E")
         m.extendRouteTurnLeft("E")
         m.extendRouteStraight(15, "N")
@@ -300,8 +419,9 @@
         var animFlag = true;
         var physicsFlag = true;
 
-
         function draw() {
+            captureKeyboardIps()
+
             if (animFlag) {
                 requestAnimationFrame(draw)
             }
@@ -315,7 +435,7 @@
 
             global.THREE.renderer.render(global.THREE.scene, global.THREE.camera)
 
-            for(vehicle of population){
+            for (vehicle of population) {
                 vehicle.tick()
                 vehicle.makeMove()
             }
@@ -395,29 +515,61 @@
 
             global.THREE.scene.add(mesh)
             mesh.position.set(point.x, point.y, point.z)
+
+            return mesh
         }
 
-        function handler(event, type) {            
-            if(type == 'up'){
-                global.keyboardIps[mapKeyToIpIndex(event.key)] = 0
-            }else{
-                global.keyboardIps[mapKeyToIpIndex(event.key)] = 1
+        function handler(event, type) {
+            if (event.key == 'w' || event.key == 'a' || event.key == 's' || event.key == 'd') {
+                global.firstIpDone = true
+                if (type == 'up') {
+                    global.keyboardIps[mapKeyToIpIndex(event.key)] = 0
+                } else {
+                    global.keyboardIps[mapKeyToIpIndex(event.key)] = 1
+                }
             }
         }
 
-        function mapKeyToIpIndex(code){
-            switch(code){
-                case 'w': return THROTTLE_INDEX
-                case 's': return BRAKE_INDEX
-                case 'a': return STEER_LEFT_INDEX
-                case 'd': return STEER_RIGHT_INDEX
+        function mapKeyToIpIndex(code) {
+            switch (code) {
+                case 'w':
+                    return THROTTLE_INDEX
+                case 's':
+                    return BRAKE_INDEX
+                case 'a':
+                    return STEER_LEFT_INDEX
+                case 'd':
+                    return STEER_RIGHT_INDEX
             }
         }
 
-        function toggleInput(){
+        function toggleInput() {
             global.acceptingInputs = !global.acceptingInputs
 
             input_toggle_btn.innerText = "accepting ip: " + global.acceptingInputs
+        }
+
+        var captured_data = []
+
+        function captureKeyboardIps() {
+            if (!(global.captureKeyboard && global.firstIpDone)) return;
+
+            var sample = []
+            var steerIp = 0.5
+
+            if (global.keyboardIps[STEER_LEFT_INDEX]) {
+                steerIp = 0
+            }
+            if (global.keyboardIps[STEER_RIGHT_INDEX]) {
+                steerIp = 1
+            }
+
+            sample.push(...trainer.sensors.map((sensor) => (sensor.state / CAR_SENSOR_SIZE)))
+            sample.push(global.keyboardIps[THROTTLE_INDEX])
+            sample.push(steerIp)
+            sample.push(global.keyboardIps[BRAKE_INDEX])
+
+            captured_data.push(sample)
         }
     </script>
 </body>
