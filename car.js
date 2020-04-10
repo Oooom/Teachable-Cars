@@ -31,7 +31,7 @@ var MAX_FORCE = 650;
 var BRAKE_FORCE = 1000000;
 
 var CAR_COLOR = 0x00FFFF
-var CAR_OPACITY = 0
+var CAR_OPACITY = 0.2
 var CAR_HIGHLIGHT_COLOR = 0xFFC0CB
 var CAR_HIGHLIGHT_OPACITY = 1
 
@@ -401,6 +401,8 @@ function CarSensor(x, y, z) {
 
 function setManualDrive(car){
     var manual_make_move_fn = function() {
+        if (!global.acceptingInputs) return
+
         var engine_force, steer_val
         
         if (global.keyboardIps[THROTTLE_INDEX]) {
@@ -431,6 +433,8 @@ function setManualDrive(car){
 
 function setAutomaticDrive(car){
     var auto_make_move_fn = function () {
+        if (!global.acceptingInputs) return
+        
         var ips = [...this.sensors.map((sensor) => (sensor.state / CAR_SENSOR_SIZE))]
         ips.push(this.throttleInput)
         ips.push(this.steerInput)

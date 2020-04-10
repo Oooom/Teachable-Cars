@@ -82,6 +82,9 @@
             <button id="test_btn">test</button>
             <button id="compete_btn">compete</button>
         </div>
+        <div>
+            <button id="input_toggle_btn" onClick = "toggleInput()">accepting ip: false</button>
+        </div>
     </div>
 
     <script>
@@ -94,6 +97,7 @@
             THREE: {},
             CANNON: {},
             MeshBodyPairs: [],
+            acceptingInputs: false,
             keyboardIps:[0, NaN, 0, 0, NaN, 0]    //do not use no_throttle index for keyboard ip... this weird format is used because automatic wala code had been written with this and ctrl+c, ctrl+v....
         }
 
@@ -275,7 +279,7 @@
         var population = []
 
         var trainee = new CarWithSensors();
-        setManualDrive(trainee)
+        setAutomaticDrive(trainee)
         trainee.resetBody()
         trainee.body.position.set(spawnPoint.x, spawnPoint.y, spawnPoint.z)
         trainee.body.quaternion.set(spawnQuat.x, spawnQuat.y, spawnQuat.z, spawnQuat.w)
@@ -309,12 +313,12 @@
                 resolveMeshBodyPairs()
             }
 
+            global.THREE.renderer.render(global.THREE.scene, global.THREE.camera)
+
             for(vehicle of population){
                 vehicle.tick()
                 vehicle.makeMove()
             }
-
-            global.THREE.renderer.render(global.THREE.scene, global.THREE.camera)
 
             if (physicsFlag) {
                 m.checkCollisions(population) //should be called only after vehicle.tick
@@ -408,6 +412,12 @@
                 case 'a': return STEER_LEFT_INDEX
                 case 'd': return STEER_RIGHT_INDEX
             }
+        }
+
+        function toggleInput(){
+            global.acceptingInputs = !global.acceptingInputs
+
+            input_toggle_btn.innerText = "accepting ip: " + global.acceptingInputs
         }
     </script>
 </body>
