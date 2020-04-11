@@ -78,10 +78,10 @@
 
     <div id="top_bar">
         <div>
-            <input type="text" size="10" placeholder="Model Name..." />
-            <button>Create Blank Model</button>
-            <button>Save Current Model</button>
-            <button>Load Model</button>
+            <input id="model_name_ip" type="text" size="10" placeholder="Model Name..." />
+            <button id="create_blank_model_btn" onclick="createBlankModel()">Create Blank Model</button>
+            <button onclick="saveCurrentModel()">Save Current Model</button>
+            <button onclick="loadModel()">Load Model</button>
         </div>
         <div id = "status_container">
             <span id="status_text"></span>
@@ -113,7 +113,6 @@
             captureKeyboard: false,
             firstIpDone: false,
             NN_MODEL: null,
-            NN_IDENTIFIER: "new",
             mode: '',
             keyboardIps: [0, NaN, 0, 0, NaN, 0] //do not use no_throttle index for keyboard ip... this weird format is used because automatic wala code had been written with this and ctrl+c, ctrl+v....
         }
@@ -363,7 +362,18 @@
             
             if(global.acceptingInputs)
                 input_toggle_btn.click()
-            //train the nn on the captured_data
+            
+            setStatus("Training Model...", "gray")
+
+            global.NN_MODEL.train(captured_data, {shuffle: true, epochs: 100, onEpochBegin: (e)=>console.log(e)}).then(function(){
+                setStatus("Model Training Complete.", "green")
+                captured_data.data = []
+                captured_data.labels = []
+            }, function(){
+                setStatus("Error occured while training model.", "red")
+                captured_data.data = []
+                captured_data.labels = []
+            })
         }
 
 
@@ -420,7 +430,7 @@
         var population = []
         var dead_marker = []
 
-        global.NN_MODEL = new NeuralNetwork(DEFAULT_ARCHITECTURE)
+        create_blank_model_btn.click()
 
         var m = new Map(spawnPoint, 0, 8)
 
@@ -608,6 +618,27 @@
             setTimeout(function(){
                 status_container.style.opacity = 0
             }, 3000)
+        }
+
+        function createBlankModel(){
+            global.NN_MODEL = new NeuralNetwork(DEFAULT_ARCHITECTURE)
+            model_name_ip.value = "new"
+            setStatus("Blank Model Created.", 'green')
+        }
+
+        function saveCurrentModel(){
+            saveToLocalStorage(global.NN_MODEL, model_name_ip.value).then(function(){
+                setStatus("Model Saved.", 'green')
+            })
+        }
+
+        function loadModel(){
+            loadNeuralNetworkFromLocalStorage(model_name_ip.value).then(function(nn){
+                global.NN_MODEL = nn
+                setStatus("Model '" + model_name_ip.value + "' loaded.", 'green')
+            }, function(){
+                setStatus("Model '" + model_name_ip.value + "' does not exist.", 'red')
+            })
         }
     </script>
 </body>

@@ -22,7 +22,7 @@
 // }
 
 function saveToLocalStorage(nn, identifier){
-    nn.model.save("localstorage://" + identifier)
+    return nn.model.save("localstorage://" + identifier)
 }
 
 async function loadNeuralNetworkFromLocalStorage(identifier){
