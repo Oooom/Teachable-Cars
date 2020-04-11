@@ -49,31 +49,44 @@
             outline: none;
         }
 
-        #stats_overlay {
+        #top_bar{
+            display: flex;
+            width: 99%;
+            padding-left: 0.5%;
+            padding-right: 0.5%;
             position: absolute;
-            right: 0;
             top: 0;
-            color: white;
-            font-size: 1.5em;
-            padding: 4px;
-            font-family: Arial, Helvetica, sans-serif;
+
+            align-items: center;
+            justify-content: space-between;
         }
 
-        #mating_pool_container {
-            position: absolute;
-            left: 0;
-            top: 0;
+        #status_text{
             color: white;
-            font-size: 0.7em;
+            font-family: sans-serif;
+        }
+
+        #status_container{
             padding: 4px;
-            font-family: Arial, Helvetica, sans-serif;
-            transition-duration: 0.25s;
+            transition-duration: 500ms;
         }
     </style>
 </head>
 
 <body>
     <canvas></canvas>
+
+    <div id="top_bar">
+        <div>
+            <input type="text" size="10" placeholder="Model Name..." />
+            <button>Create Blank Model</button>
+            <button>Save Current Model</button>
+            <button>Load Model</button>
+        </div>
+        <div id = "status_container">
+            <span id="status_text"></span>
+        </div>
+    </div>
 
     <div id="action_buttons">
         <div>
@@ -99,9 +112,10 @@
             acceptingInputs: false,
             captureKeyboard: false,
             firstIpDone: false,
+            NN_MODEL: null,
+            NN_IDENTIFIER: "new",
             mode: '',
-            keyboardIps: [0, NaN, 0, 0, NaN,
-                0] //do not use no_throttle index for keyboard ip... this weird format is used because automatic wala code had been written with this and ctrl+c, ctrl+v....
+            keyboardIps: [0, NaN, 0, 0, NaN, 0] //do not use no_throttle index for keyboard ip... this weird format is used because automatic wala code had been written with this and ctrl+c, ctrl+v....
         }
 
         function to_radians(degrees) {
@@ -406,6 +420,8 @@
         var population = []
         var dead_marker = []
 
+        global.NN_MODEL = new NeuralNetwork(DEFAULT_ARCHITECTURE)
+
         var m = new Map(spawnPoint, 0, 8)
 
         m.addCheckpointAtCursor()
@@ -549,27 +565,49 @@
             input_toggle_btn.innerText = "accepting ip: " + global.acceptingInputs
         }
 
-        var captured_data = []
+        var captured_data = {data:[], labels:[]}
 
         function captureKeyboardIps() {
             if (!(global.captureKeyboard && global.firstIpDone)) return;
 
+            //current vehicle state capture
             var sample = []
-            var steerIp = 0.5
+            sample.push(...trainer.sensors.map((sensor) => (sensor.state / CAR_SENSOR_SIZE)))
+            sample.push(trainer.throttleInput)
+            sample.push(trainer.steerInput)
+            sample.push(trainer.reverseInput)
+            
+            //action done by user capture
+            var labels = [0, 0, 0, 0, 0, 0]
+
+            if(global.keyboardIps[THROTTLE_INDEX]){
+                labels[THROTTLE_INDEX] = 1
+            }else if(global.keyboardIps[BRAKE_INDEX]){
+                labels[BRAKE_INDEX] = 1
+            }else{
+                labels[NO_THROTTLE_INDEX] = 1
+            }
 
             if (global.keyboardIps[STEER_LEFT_INDEX]) {
-                steerIp = 0
-            }
-            if (global.keyboardIps[STEER_RIGHT_INDEX]) {
-                steerIp = 1
+                labels[STEER_LEFT_INDEX] = 1
+            }else if (global.keyboardIps[STEER_RIGHT_INDEX]) {
+                labels[STEER_RIGHT_INDEX] = 1
+            }else{
+                labels[NO_STEER_INDEX] = 1
             }
 
-            sample.push(...trainer.sensors.map((sensor) => (sensor.state / CAR_SENSOR_SIZE)))
-            sample.push(global.keyboardIps[THROTTLE_INDEX])
-            sample.push(steerIp)
-            sample.push(global.keyboardIps[BRAKE_INDEX])
+            captured_data.data.push(sample)
+            captured_data.labels.push(labels)
+        }
 
-            captured_data.push(sample)
+        function setStatus(msg, color){
+            status_text.innerText = msg
+            status_container.style.opacity = 1
+            status_container.style.backgroundColor = color
+
+            setTimeout(function(){
+                status_container.style.opacity = 0
+            }, 3000)
         }
     </script>
 </body>

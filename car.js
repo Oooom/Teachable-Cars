@@ -394,23 +394,30 @@ function setManualDrive(car){
         if (!global.acceptingInputs) return
 
         var engine_force, steer_val
-        
+        this.reverseInput = 0
+
         if (global.keyboardIps[THROTTLE_INDEX]) {
             engine_force = -MAX_FORCE
+            this.throttleInput = 1
         } else {
             engine_force = 0
+            this.throttleInput = 0
         } 
         
         if (global.keyboardIps[BRAKE_INDEX]) {
             engine_force = MAX_FORCE / 2
+            this.reverseInput = 1
         }
 
         if (global.keyboardIps[STEER_RIGHT_INDEX]) {
             steer_val = -MAX_STEER_VAL
+            this.steerInput = 1
         } else if (global.keyboardIps[STEER_LEFT_INDEX]) {
             steer_val = MAX_STEER_VAL
+            this.steerInput = 0
         } else  {
             steer_val = 0
+            this.steerInput = 0.5
         }
 
         this.applyEngineForce(engine_force)
@@ -478,7 +485,7 @@ function setAutomaticDrive(car){
         this.turn(steer_val)
     }
 
-    car.brain = new NeuralNetwork(DEFAULT_ARCHITECTURE)
+    car.brain = global.NN_MODEL
 
     car.makeMove = auto_make_move_fn
 }
