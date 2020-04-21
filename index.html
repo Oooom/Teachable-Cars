@@ -82,6 +82,7 @@
             <button id="create_blank_model_btn" onclick="createBlankModel()">Create Blank Model</button>
             <button onclick="saveCurrentModel()">Save Current Model</button>
             <button onclick="loadModel()">Load Model</button>
+            <button onclick="trainModel()">Train Model</button>
         </div>
         <div id = "status_container">
             <span id="status_text"></span>
@@ -362,18 +363,6 @@
             
             if(global.acceptingInputs)
                 input_toggle_btn.click()
-            
-            setStatus("Training Model...", "gray")
-
-            global.NN_MODEL.train(captured_data, {shuffle: true, epochs: 100, onEpochBegin: (e)=>console.log(e)}).then(function(){
-                setStatus("Model Training Complete.", "green")
-                captured_data.data = []
-                captured_data.labels = []
-            }, function(){
-                setStatus("Error occured while training model.", "red")
-                captured_data.data = []
-                captured_data.labels = []
-            })
         }
 
 
@@ -388,6 +377,18 @@
                 input_toggle_btn.click()
         }
 
+        function trainModel(){
+            setStatus("Training Model...", "gray")
+
+            global.NN_MODEL.train(
+                captured_data,
+                {batchSize: captured_data.data.length, shuffle: true, epochs: 2000}
+            ).then(function(){
+            setStatus("Model Training Complete.", "green")
+            }, function(){
+                setStatus("Error occured while training model.", "red")
+            })
+        }
 
         function addTrainer(){
             window.trainer = new CarWithSensors();
@@ -445,6 +446,8 @@
         var animFlag = true;
         var physicsFlag = true;
 
+        var tempVec = new CANNON.Vec3()
+
         function draw() {
             captureKeyboardIps()
 
@@ -468,6 +471,10 @@
 
             if (physicsFlag) {
                 m.checkCollisions(population) //should be called only after vehicle.tick
+            }
+
+            if(window['trainer']){
+                trainer.getVelocityLocal()
             }
         }
 
@@ -583,9 +590,9 @@
             //current vehicle state capture
             var sample = []
             sample.push(...trainer.sensors.map((sensor) => (sensor.state / CAR_SENSOR_SIZE)))
-            sample.push(trainer.throttleInput)
-            sample.push(trainer.steerInput)
-            sample.push(trainer.reverseInput)
+            var ips = trainer.getVelocityLocal()
+            sample.push(ips.x)
+            sample.push(ips.z)
             
             //action done by user capture
             var labels = [0, 0, 0, 0, 0, 0]

@@ -6,7 +6,7 @@
 var CAR_SENSOR_TRANSFORMATION_MATRIX = new THREE.Matrix4()
 
 var CAR_SENSOR_ROTATION_MATRICES = []
-var degrees = [180, 0, 90, -90, 0, 45, -45]
+var degrees = [0, 90, -90, 45, -45]
 for(var i = 0; i < degrees.length; i++){
     var m = new THREE.Matrix4()
     m.makeRotationFromEuler(new THREE.Euler(0, 0, to_radians(degrees[i])))
@@ -42,13 +42,15 @@ var STEER_LEFT_INDEX = 3
 var NO_STEER_INDEX = 4
 var STEER_RIGHT_INDEX = 5
 
+const MAX_CAR_VELOCITY = 25
+
+var tempVec = new CANNON.Vec3() //do not read without writing in it
+var max_z = 0
+
 function CarWithSensors() {
     this.inWhichChunk = 0
 
     this.disabled = false
-    this.throttleInput = 0
-    this.steerInput = 0.5
-    this.reverseInput = 0
 
     this.sensors = []
     this.lastCheckpointIndex = -1
@@ -239,6 +241,53 @@ function CarWithSensors() {
         }
     }
 
+    var localVelocity = {x:0, z:0}
+
+    //remember, right is -ve and left is +ve, ahead is +ve and reverse if -ve
+    this.getVelocityLocal = function(){
+        this.body.quaternion.toEuler(tempVec)
+        var orientation = tempVec.y
+
+        var velocity_vec_dist = Math.sqrt(this.body.velocity.z ** 2 + this.body.velocity.x ** 2)
+        var velocity_vec_angle = -Math.atan2(this.body.velocity.z, this.body.velocity.x)
+
+        var diff_x = Math.abs(orientation - velocity_vec_angle)
+        var diff_z = Math.abs(orientation + Math.PI/2 - velocity_vec_angle)
+
+        if (diff_x > Math.PI){
+            diff_x = 2 * Math.PI - diff_x
+        }
+        if (diff_z > Math.PI){
+            diff_z = 2 * Math.PI - diff_z
+        }
+        
+        var ratio
+        var sign_x = 0
+        var sign_z = 0
+
+        if(diff_x <= Math.PI/2){
+            sign_x = 1
+            ratio = 1 - diff_x/(Math.PI/2)
+        }else{
+            sign_x = -1
+            ratio = 1 - Math.abs(diff_x - Math.PI)/(Math.PI/2)
+        }
+
+        if(diff_z <= Math.PI/2){
+            sign_z = 1
+        }else{
+            sign_z = -1
+        }
+
+        localVelocity.x = sign_x * ratio
+        localVelocity.z = sign_z * (1 - ratio)
+
+        localVelocity.x *= (velocity_vec_dist / MAX_CAR_VELOCITY)
+        localVelocity.z *= (velocity_vec_dist / MAX_CAR_VELOCITY)
+
+        return localVelocity
+    }
+
     this.makeMove = function(){/*filled by setAutomaticDrive or setManualDrive*/}
 
     function _resetBody(){
@@ -394,30 +443,23 @@ function setManualDrive(car){
         if (!global.acceptingInputs) return
 
         var engine_force, steer_val
-        this.reverseInput = 0
 
         if (global.keyboardIps[THROTTLE_INDEX]) {
             engine_force = -MAX_FORCE
-            this.throttleInput = 1
         } else {
             engine_force = 0
-            this.throttleInput = 0
         } 
         
         if (global.keyboardIps[BRAKE_INDEX]) {
             engine_force = MAX_FORCE / 2
-            this.reverseInput = 1
         }
 
         if (global.keyboardIps[STEER_RIGHT_INDEX]) {
             steer_val = -MAX_STEER_VAL
-            this.steerInput = 1
         } else if (global.keyboardIps[STEER_LEFT_INDEX]) {
             steer_val = MAX_STEER_VAL
-            this.steerInput = 0
         } else  {
             steer_val = 0
-            this.steerInput = 0.5
         }
 
         this.applyEngineForce(engine_force)
@@ -432,52 +474,31 @@ function setAutomaticDrive(car){
         if (!global.acceptingInputs) return
         
         var ips = [...this.sensors.map((sensor) => (sensor.state / CAR_SENSOR_SIZE))]
-        ips.push(this.throttleInput)
-        ips.push(this.steerInput)
-        ips.push(this.reverseInput)
+        var velocity = this.getVelocityLocal()
+        ips.push(velocity.x)
+        ips.push(velocity.z)
 
         var res = this.brain.predict(ips)
 
         var engine_force
         var steer_val
 
-        this.throttleInput = 0
-        this.reverseInput = 0
-
         var max_val = Math.max(res[THROTTLE_INDEX], res[NO_THROTTLE_INDEX], res[BRAKE_INDEX])
         if (max_val == res[THROTTLE_INDEX]) {
-
             engine_force = -MAX_FORCE
-            this.throttleInput = 1
-
         } else if (max_val == res[NO_THROTTLE_INDEX]) {
-
             engine_force = 0
-            this.throttleInput = 0
-
         } else if (max_val == res[BRAKE_INDEX]) {
-
             engine_force = MAX_FORCE / 2
-            this.reverseInput = 1
-
         }
 
         var max_val = Math.max(res[STEER_LEFT_INDEX], res[STEER_RIGHT_INDEX], res[NO_STEER_INDEX])
         if (max_val == res[STEER_RIGHT_INDEX]) {
-
             steer_val = -MAX_STEER_VAL
-            this.steerInput = 1
-
         } if (max_val == res[NO_STEER_INDEX]) {
-
             steer_val = 0
-            this.steerInput = 0.5
-
         } if (max_val == res[STEER_LEFT_INDEX]) {
-
             steer_val = MAX_STEER_VAL
-            this.steerInput = 0
-
         }
 
 

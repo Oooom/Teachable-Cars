@@ -1,7 +1,5 @@
 /*
-    {
-        hiddenLayers: [4, 2] // first hidden layer will have 4 units and second will have 2
-    }
+    hiddenLayers: [4, 2] // first hidden layer will have 4 units and second will have 2
     inputs: 11,
     outputs: 2,
     activation: "sigmoid",
@@ -17,9 +15,9 @@
 //  constructor4 (modelWrapper)         //modelWrapper should have .isModelWrapper: true and .model... For serialization/de-serialization
 
 var DEFAULT_ARCHITECTURE = {
-    inputs: 10,
+    inputs: 7,
     outputs: 6,
-    hiddenLayers: [6]
+    hiddenLayers: [5]
 }
 
 
@@ -99,7 +97,7 @@ function NeuralNetwork(options, nn1, nn2) {
             opt.activation = "sigmoid"
 
         if (opt.optimizer === undefined)
-            opt.optimizer = tf.train.adam(0.25)
+            opt.optimizer = tf.train.adam(0.22)
 
         if (opt.loss === undefined)
             opt.loss = "meanSquaredError"
@@ -156,9 +154,10 @@ function NeuralNetwork(options, nn1, nn2) {
         let xs = tf.tensor2d(capture.data)
         let xy = tf.tensor2d(capture.labels)
 
-        return this.model.fit(xs, xy, args).then(() => {
+        return this.model.fit(xs, xy, args).then((info) => {
             tf.dispose(xs)
             tf.dispose(xy)
+            console.log(info.history.loss[info.history.loss.length - 1])
         })
     }
 
